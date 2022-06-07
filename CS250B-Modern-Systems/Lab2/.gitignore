@@ -1,0 +1,7 @@
+*.sw?
+bsim
+build
+*.log
+*.txt
+*.o
+obj
