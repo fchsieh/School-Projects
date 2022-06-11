@@ -1,0 +1,14 @@
+main
+var a, b, c, d, e; 
+array[5] arr; {
+    
+    let a <- 111;
+    let arr[2] <- a;
+    call OutputNum(arr[2]);
+    
+    while a < 1000 do
+        let a <- a + 1;
+    od;
+
+    call OutputNum(arr[2]);
+}.

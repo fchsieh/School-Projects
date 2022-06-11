@@ -1,0 +1,201 @@
+#!/bin/bash
+
+echo "Using: $1"
+output="result_$1"
+
+HIGHEST_PSNR=0
+((LOWEST_PSNR=2**32))
+BEST_SIGMA=0
+WORST_SIGMA=0
+if [ "$1" = "psnr_video" ]; then
+    sigma=(0.1 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0 6.5 7.0 7.5 8.0)
+else
+    sigma=(0.1 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 2.4 2.6 2.8 3.0)
+fi
+
+
+echo "=== Finding best value for Sigma ==="
+echo "Param FPS PSNR" > "$output"
+for s in "${sigma[@]}"
+do
+    mapfile -t -n 2 result < <(./$1 "$s" 0.2 0.6 | awk 'NR==5,NR==6')
+    FPS=$(echo ${result[0]} | sed 's/.$//' | awk '{print $2}')
+    PSNR=$(echo ${result[1]} | awk '{print $5}')
+    echo "Sigma: $s, FPS: $FPS, PSNR: $PSNR"
+    echo "$s $FPS $PSNR" >> "$output"
+    
+    # update params if PSNR > current best PSNR
+    if (( $(echo "$PSNR > $HIGHEST_PSNR" | bc) )); then
+        HIGHEST_PSNR="$PSNR"
+        BEST_SIGMA="$s"
+    fi
+    if (( $(echo "$PSNR < $LOWEST_PSNR" | bc) )); then
+        LOWEST_PSNR="$PSNR"
+        WORST_SIGMA="$s"
+    fi
+done
+
+echo "## Highest PSNR: $HIGHEST_PSNR Best Sigma: $BEST_SIGMA"
+echo "## Highest PSNR: $HIGHEST_PSNR Best Sigma: $BEST_SIGMA" >> "$output"
+echo "## Lowest PSNR: $LOWEST_PSNR Worst Sigma: $WORST_SIGMA"
+echo "## Lowest PSNR: $LOWEST_PSNR Worst Sigma: $WORST_SIGMA" >> "$output"
+
+HIGHEST_PSNR=0
+((LOWEST_PSNR=2**32))
+BEST_LOWER=0
+WORST_LOWER=0
+lower=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
+
+echo "=== Finding best value for Lower bound ==="
+for l in "${lower[@]}"
+do
+    mapfile -t -n 2 result < <(./$1 "$BEST_SIGMA" "$l" 0.6 | awk 'NR==5,NR==6')
+    FPS=$(echo ${result[0]} | sed 's/.$//' | awk '{print $2}')
+    PSNR=$(echo ${result[1]} | awk '{print $5}')
+    echo "Lower: $l, FPS: $FPS, PSNR: $PSNR"
+    echo "$l $FPS $PSNR" >> "$output"
+    
+    # update params if PSNR > current best PSNR
+    if (( $(echo "$PSNR > $HIGHEST_PSNR" | bc) )); then
+        HIGHEST_PSNR="$PSNR"
+        BEST_LOWER="$l"
+    fi
+    if (( $(echo "$PSNR < $LOWEST_PSNR" | bc) )); then
+        LOWEST_PSNR="$PSNR"
+        WORST_LOWER="$l"
+    fi
+done
+
+echo "## Highest PSNR: $HIGHEST_PSNR Best Lower bound: $BEST_LOWER"
+echo "## Highest PSNR: $HIGHEST_PSNR Best Lower bound: $BEST_LOWER" >> "$output"
+echo "## Lowest PSNR: $LOWEST_PSNR Worst Lower bound: $WORST_LOWER"
+echo "## Lowest PSNR: $LOWEST_PSNR Worst Lower bound: $WORST_LOWER" >> "$output"
+
+HIGHEST_PSNR=0
+((LOWEST_PSNR=2**32))
+BEST_UPPER=0
+WORST_UPPER=0
+upper=() # upper should > low
+up=$(echo "x=$BEST_LOWER + 0.05; if(x<1) print 0; x" | bc)
+while true; do
+    if (( $(echo "$up >= 1.0" | bc ) )); then
+        break
+    fi
+    upper+=("$up")
+    up=$(echo "x=$up + 0.05; if(x<1) print 0; x" | bc)
+done
+
+echo "=== Finding best value for Upper bound ==="
+for u in "${upper[@]}"
+do
+    mapfile -t -n 2 result < <(./$1 "$BEST_SIGMA" "$BEST_LOWER" "$u" | awk 'NR==5,NR==6')
+    FPS=$(echo ${result[0]} | sed 's/.$//' | awk '{print $2}')
+    PSNR=$(echo ${result[1]} | awk '{print $5}')
+    echo "Upper: $u, FPS: $FPS, PSNR: $PSNR"
+    echo "$u $FPS $PSNR" >> "$output"
+    
+    # update params if PSNR > current best PSNR
+    if (( $(echo "$PSNR > $HIGHEST_PSNR" | bc) )); then
+        HIGHEST_PSNR="$PSNR"
+        BEST_UPPER="$u"
+    fi
+    if (( $(echo "$PSNR < $LOWEST_PSNR" | bc) )); then
+        LOWEST_PSNR="$PSNR"
+        WORST_UPPER="$u"
+    fi
+done
+
+echo "## Highest PSNR: $HIGHEST_PSNR Best Upper bound: $BEST_UPPER"
+echo "## Highest PSNR: $HIGHEST_PSNR Best Upper bound: $BEST_UPPER" >> "$output"
+echo "## Lowest PSNR: $LOWEST_PSNR Worst Upper bound: $WORST_UPPER"
+echo "## Lowest PSNR: $LOWEST_PSNR Worst Upper bound: $WORST_UPPER" >> "$output"
+
+echo "## Best (Sigma, Lower, Upper) = ($BEST_SIGMA, $BEST_LOWER, $BEST_UPPER), Worst (Sigma, Lower, Upper) = ($WORST_SIGMA, $WORST_LOWER, $WORST_UPPER)"
+echo "## Best (Sigma, Lower, Upper) = ($BEST_SIGMA, $BEST_LOWER, $BEST_UPPER), Worst (Sigma, Lower, Upper) = ($WORST_SIGMA, $WORST_LOWER, $WORST_UPPER)" >> "$output"
+
+echo "=== Finding fastest processing time ==="
+output="result_$1_time"
+((FASTEST_TIME=2**32))
+FASTEST_SIGMA=0
+
+if [ "$1" = "psnr_video" ]; then
+    sigma=(0.1 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0 6.5 7.0 7.5 8.0)
+else
+    sigma=(0.1 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 2.4 2.6 2.8 3.0)
+fi
+
+echo "=== Finding fastest time for Sigma ==="
+echo "Param TIME" > "$output"
+for s in "${sigma[@]}"
+do
+    mapfile -t -n 1 result < <(./$1 "$s" 0.2 0.6 | awk 'NR==4')
+    TIME=$(echo ${result[0]} | awk '{print $5}')
+    echo "Sigma: $s, Processing Time: $TIME"
+    echo "$s $TIME" >> "$output"
+    
+    # update params if PSNR > current best PSNR
+    if (( $(echo "$TIME < $FASTEST_TIME" | bc) )); then
+        FASTEST_TIME="$TIME"
+        FASTEST_SIGMA="$s"
+    fi
+done
+
+echo "## Fastest Processing Time: $FASTEST_TIME Sigma: $FASTEST_SIGMA"
+echo "## Fastest Processing Time: $FASTEST_TIME Sigma: $FASTEST_SIGMA" >> "$output"
+
+((FASTEST_TIME=2**32))
+FASTEST_LOWER=0
+lower=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
+
+echo "=== Finding fastest time for Lower bound ==="
+echo "Param TIME" >> "$output"
+for l in "${lower[@]}"
+do
+    mapfile -t -n 1 result < <(./$1 "$FASTEST_SIGMA" "$l" 0.6 | awk 'NR==4')
+    TIME=$(echo ${result[0]} | awk '{print $5}')
+    echo "Lower bound: $l, Processing Time: $TIME"
+    echo "$l $TIME" >> "$output"
+    
+    # update params if PSNR > current best PSNR
+    if (( $(echo "$TIME < $FASTEST_TIME" | bc) )); then
+        FASTEST_TIME="$TIME"
+        FASTEST_LOWER="$l"
+    fi
+done
+
+echo "## Fastest Processing Time: $FASTEST_TIME Lower bound: $FASTEST_LOWER"
+echo "## Fastest Processing Time: $FASTEST_TIME Lower bound: $FASTEST_LOWER" >> "$output"
+
+((FASTEST_TIME=2**32))
+FASTEST_UPPER=0
+upper=() # upper should > low
+up=$(echo "x=$FASTEST_LOWER + 0.05; if(x<1) print 0; x" | bc)
+while true; do
+    if (( $(echo "$up >= 1.0" | bc ) )); then
+        break
+    fi
+    upper+=("$up")
+    up=$(echo "x=$up + 0.05; if(x<1) print 0; x" | bc)
+done
+
+echo "=== Finding fastest time for Upper bound ==="
+echo "Param TIME" >> "$output"
+for u in "${upper[@]}"
+do
+    mapfile -t -n 1 result < <(./$1 "$FASTEST_SIGMA" "$FASTEST_LOWER" "$u" | awk 'NR==4')
+    TIME=$(echo ${result[0]} | awk '{print $5}')
+    echo "Upper bound: $u, Processing Time: $TIME"
+    echo "$u $TIME" >> "$output"
+    
+    # update params if PSNR > current best PSNR
+    if (( $(echo "$TIME < $FASTEST_TIME" | bc) )); then
+        FASTEST_TIME="$TIME"
+        FASTEST_UPPER="$u"
+    fi
+done
+
+echo "## Fastest Processing Time: $FASTEST_TIME Upper bound: $FASTEST_UPPER"
+echo "## Fastest Processing Time: $FASTEST_TIME Upper bound: $FASTEST_UPPER" >> "$output"
+
+echo "## Fastest Time (Sigma, Lower, Upper) = ($FASTEST_SIGMA, $FASTEST_LOWER, $FASTEST_UPPER)"
+echo "## Fastest Time (Sigma, Lower, Upper) = ($FASTEST_SIGMA, $FASTEST_LOWER, $FASTEST_UPPER)" >> "$output"

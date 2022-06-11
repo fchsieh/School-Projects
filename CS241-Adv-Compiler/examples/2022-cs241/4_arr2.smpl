@@ -1,0 +1,6 @@
+main
+array[5][6] arr;
+{
+    let arr[2][3] <- 13;
+    call OutputNum(arr[2][3]);
+}.

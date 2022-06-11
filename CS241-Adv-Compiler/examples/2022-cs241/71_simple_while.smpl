@@ -1,0 +1,13 @@
+main
+var b1,b2,b3,b4,b5;
+{
+let b1<-10;
+let b2<-20;
+let b3<-30;
+let b4<-40;
+let b5<-50;
+while b1<b2 
+do 
+let b3<-100; 
+od;
+}.

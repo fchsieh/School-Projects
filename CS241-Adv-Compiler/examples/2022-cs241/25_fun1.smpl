@@ -1,0 +1,39 @@
+main
+
+function test1(b);
+var e,f,g, rua3;
+array[10] a;
+{
+    let a[1] <- 3;
+    if b > 0 then
+        return call InputNum;
+    else
+        return 0 - call InputNum;
+    fi;
+};
+function test2(b);
+{
+    if b > 0 then
+        return call InputNum;
+    else
+        return 0 - call InputNum;
+    fi;
+};
+void function test3(b);
+{
+    call OutputNum(b);
+};
+void function test4(a,b,c,d);
+{
+    let a <- b + c + d;
+    call OutputNum(a);
+};
+{
+    let rua3 <- 15;
+    let a[1] <- 3;
+    let rua1 <- a[1];
+    call OutputNum(rua1);
+    call OutputNum(call test2(1));
+    call OutputNum(call test1(0));
+    call test3(rua1);
+}.
