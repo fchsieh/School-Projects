@@ -1,5 +1,6 @@
 import collections
 import operator
+from os import kill
 
 import smplSSA
 
@@ -14,7 +15,7 @@ class Block:
         self.dominates = []
         self.search_list = collections.defaultdict(list)
         self.join_block_killed = []
-        self.possible_killed_load = {}
+        self.possibly_killed_load = {}
 
     def rename_op(self, old_op, new_op, visited=None):
         if not visited:
@@ -67,16 +68,23 @@ class Block:
                     # should be loading the previous adda instr
                     and instr.ops[0] == smplSSA.InstructionOp(self.instrs[-1])
                 ):
-                    prev_adda = self.instrs[-1]
+                    adda_before_load = self.instrs[-1]  # get adda before this load
                     orig_ops = instr.ops
                     start_check_dup = True
                     # first we check whether 'adda' is possibly killed by its predecessor
-                    for killed_adda in self.possible_killed_load:
-                        if killed_adda.ops == prev_adda.ops:
+                    for killed_adda in self.possibly_killed_load:
+                        if killed_adda.ops == adda_before_load.ops:
                             # we should skip this case, since it is killed already
                             start_check_dup = False
+                            # clear search list and add this (adda,load) pair to it
+                            self.search_list["load"] = [self.instrs[-1], instr]
+                            # clear possibly killed load, since the first one is killed
+                            self.possibly_killed_load = {}
+
                     if start_check_dup:
-                        prev_identical_adda = prev_adda.find_identical_instr(dom_list)
+                        prev_identical_adda = adda_before_load.find_identical_instr(
+                            dom_list
+                        )
                         if prev_identical_adda is not None:
                             # load previous adda instr, check whether it already exists
                             # this is to make it consistent with other load instrs
