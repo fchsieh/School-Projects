@@ -130,3 +130,6 @@ dmypy.json
 
 # My gitignore
 .vscode/
+
+# show correct language stats
+notebooks/** linguist-vendored
